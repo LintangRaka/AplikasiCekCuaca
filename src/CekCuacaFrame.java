@@ -1,12 +1,13 @@
 
 import java.awt.Image;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
+import javax.swing.table.DefaultTableModel;
 import org.json.JSONObject;
 
 /*
@@ -52,6 +53,12 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         btnCekCuaca = new javax.swing.JButton();
         jLabel2 = new javax.swing.JLabel();
         cbbKotaFavorit = new javax.swing.JComboBox<>();
+        jPanel2 = new javax.swing.JPanel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        tblCuaca = new javax.swing.JTable();
+        jPanel3 = new javax.swing.JPanel();
+        btnSimpan = new javax.swing.JButton();
+        btnLoad = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -146,7 +153,49 @@ public class CekCuacaFrame extends javax.swing.JFrame {
         gridBagConstraints.insets = new java.awt.Insets(6, 6, 6, 6);
         jPanel1.add(cbbKotaFavorit, gridBagConstraints);
 
-        getContentPane().add(jPanel1, java.awt.BorderLayout.CENTER);
+        getContentPane().add(jPanel1, java.awt.BorderLayout.NORTH);
+
+        jPanel2.setLayout(new java.awt.BorderLayout());
+
+        tblCuaca.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+
+            },
+            new String [] {
+                "Kota", "Cuaca", "Suhu", "Keterangan"
+            }
+        ) {
+            Class[] types = new Class [] {
+                java.lang.String.class, java.lang.String.class, java.lang.String.class, java.lang.String.class
+            };
+
+            public Class getColumnClass(int columnIndex) {
+                return types [columnIndex];
+            }
+        });
+        jScrollPane1.setViewportView(tblCuaca);
+
+        jPanel2.add(jScrollPane1, java.awt.BorderLayout.CENTER);
+
+        btnSimpan.setText("Simpan");
+        btnSimpan.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnSimpanActionPerformed(evt);
+            }
+        });
+        jPanel3.add(btnSimpan);
+
+        btnLoad.setText("Load");
+        btnLoad.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnLoadActionPerformed(evt);
+            }
+        });
+        jPanel3.add(btnLoad);
+
+        jPanel2.add(jPanel3, java.awt.BorderLayout.SOUTH);
+
+        getContentPane().add(jPanel2, java.awt.BorderLayout.CENTER);
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
@@ -169,25 +218,104 @@ public class CekCuacaFrame extends javax.swing.JFrame {
                 model.addElement(kota); // Menambahkan kota ke ComboBox
                 model.setSelectedItem(null); // reset Combobox yang dipilih
             }
+
+            // Ambil data cuaca yang sudah ditampilkan
+            String namaCuaca = lblNamaCuaca.getText().replace("Nama: ", "");
+            String keteranganCuaca = lblKeteranganCuaca.getText().replace("Ket. ", "");
+            String suhu = lblSuhuCuaca.getText().replace("Suhu: ", "");
+
+            // Tambahkan data ke tabel
+            addRowToTable(kota, namaCuaca, suhu, keteranganCuaca);
         } else {
             clearWeatherLabels(); // Bersihkan label output saat error
         }
     }//GEN-LAST:event_btnCekCuacaActionPerformed
 
     private void cbbKotaFavoritItemStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_cbbKotaFavoritItemStateChanged
-        // Ambil nama kota yang dipilih
-        String kotaFavorit = (String) cbbKotaFavorit.getSelectedItem();
-        if (kotaFavorit != null && !kotaFavorit.isEmpty()) {
-            // Lakukan request cuaca berdasarkan kota
-            String response = fetchWeatherData(kotaFavorit); // Ambil data cuaca
-            if (response != null) {
-                parseAndDisplayWeatherData(response); // Parsing dan tampilkan ke UI
-                txtKota.setText((String) cbbKotaFavorit.getSelectedItem());
-            } else {
-                clearWeatherLabels(); // Jika gagal, clear label
+        if (cbbKotaFavorit.getSelectedIndex() != -1)
+            txtKota.setText((String) cbbKotaFavorit.getSelectedItem()); // Sinkronkan input nama kota yang dipilih
+    }//GEN-LAST:event_cbbKotaFavoritItemStateChanged
+
+    private void btnSimpanActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSimpanActionPerformed
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Pilih Lokasi dan Nama File untuk Menyimpan");
+
+        // Set filter untuk hanya menampilkan file CSV
+        fileChooser.setAcceptAllFileFilterUsed(false);
+        fileChooser.addChoosableFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("CSV Files", "csv"));
+
+        int result = fileChooser.showSaveDialog(this);
+
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+
+            // Pastikan file berformat .csv
+            if (!file.getName().endsWith(".csv")) {
+                file = new File(file.getAbsolutePath() + ".csv");
+            }
+
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+                // Tulis header tabel
+                writer.write("Kota,Cuaca,Suhu,Keterangan");
+                writer.newLine();
+
+                // Ambil model tabel
+                DefaultTableModel model = (DefaultTableModel) tblCuaca.getModel();
+
+                // Tulis setiap baris data ke dalam file CSV
+                for (int i = 0; i < model.getRowCount(); i++) {
+                    String kota = (String) model.getValueAt(i, 0);
+                    String cuaca = (String) model.getValueAt(i, 1);
+                    String suhu = (String) model.getValueAt(i, 2);
+                    String keterangan = (String) model.getValueAt(i, 3);
+
+                    // Tulis data baris ke file
+                    writer.write(kota + "," + cuaca + "," + suhu + "," + keterangan);
+                    writer.newLine();
+                }
+
+                JOptionPane.showMessageDialog(this, "Data berhasil disimpan di: " + file.getAbsolutePath(), "Berhasil", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Error saat menyimpan file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
-    }//GEN-LAST:event_cbbKotaFavoritItemStateChanged
+    }//GEN-LAST:event_btnSimpanActionPerformed
+
+    private void btnLoadActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadActionPerformed
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Pilih File CSV untuk Dimuat");
+
+        // Set filter untuk hanya menampilkan file CSV
+        fileChooser.setAcceptAllFileFilterUsed(false);
+        fileChooser.addChoosableFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("CSV Files", "csv"));
+
+        int result = fileChooser.showOpenDialog(this);
+
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File file = fileChooser.getSelectedFile();
+
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String line;
+                DefaultTableModel model = (DefaultTableModel) tblCuaca.getModel();
+                model.setRowCount(0); // Menghapus semua baris sebelum memuat data baru
+
+                // Lewati header
+                reader.readLine();
+
+                // Baca setiap baris dalam file CSV
+                while ((line = reader.readLine()) != null) {
+                    String[] data = line.split(",");
+
+                    // Tambahkan data ke tabel
+                    model.addRow(new Object[]{data[0], data[1], data[2], data[3]});
+                }
+
+                JOptionPane.showMessageDialog(this, "Data berhasil dimuat dari: " + file.getAbsolutePath(), "Berhasil", JOptionPane.INFORMATION_MESSAGE);
+            } catch (IOException e) {
+                JOptionPane.showMessageDialog(this, "Error saat memuat file: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }//GEN-LAST:event_btnLoadActionPerformed
 
     /**
      * @param args the command line arguments
@@ -222,6 +350,14 @@ public class CekCuacaFrame extends javax.swing.JFrame {
                 new CekCuacaFrame().setVisible(true);
             }
         });
+    }
+
+    private void addRowToTable(String kota, String cuaca, String suhu, String keterangan) {
+        // Ambil model tabel
+        javax.swing.table.DefaultTableModel model = (javax.swing.table.DefaultTableModel) tblCuaca.getModel();
+
+        // Tambahkan data baru ke tabel
+        model.addRow(new Object[]{kota, cuaca, suhu, keterangan});
     }
 
     private String fetchWeatherData(String kota) {
@@ -296,14 +432,20 @@ public class CekCuacaFrame extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnCekCuaca;
+    private javax.swing.JButton btnLoad;
+    private javax.swing.JButton btnSimpan;
     private javax.swing.JComboBox<String> cbbKotaFavorit;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel lblIconCuaca;
     private javax.swing.JLabel lblKeteranganCuaca;
     private javax.swing.JLabel lblNamaCuaca;
     private javax.swing.JLabel lblSuhuCuaca;
+    private javax.swing.JTable tblCuaca;
     private javax.swing.JTextField txtKota;
     // End of variables declaration//GEN-END:variables
 }
